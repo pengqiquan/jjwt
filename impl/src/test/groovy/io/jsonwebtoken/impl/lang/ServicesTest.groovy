@@ -15,42 +15,26 @@
  */
 package io.jsonwebtoken.impl.lang
 
-import io.jsonwebtoken.impl.DefaultStubService
 import io.jsonwebtoken.StubService
+import io.jsonwebtoken.impl.DefaultStubService
+import org.junit.After
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.powermock.api.easymock.PowerMock
-import org.powermock.core.classloader.annotations.PrepareForTest
-import org.powermock.modules.junit4.PowerMockRunner
-
-import java.lang.reflect.Field
 
 import static org.junit.Assert.assertEquals
 import static org.junit.Assert.assertNotNull
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest([Services])
 class ServicesTest {
 
     @Test
     void testSuccessfulLoading() {
-        def factory = Services.loadFirst(StubService)
-        assertNotNull factory
-        assertEquals(DefaultStubService, factory.class)
+        def service = Services.get(StubService)
+        assertNotNull service
+        assertEquals(DefaultStubService, service.class)
     }
 
     @Test(expected = UnavailableImplementationException)
-    void testLoadFirstUnavailable() {
-        NoServicesClassLoader.runWith {
-            Services.loadFirst(StubService.class)
-        }
-    }
-
-    @Test(expected = UnavailableImplementationException)
-    void testLoadAllUnavailable() {
-        NoServicesClassLoader.runWith {
-            Services.loadAll(StubService.class)
-        }
+    void testLoadUnavailable() {
+        Services.get(NoService.class)
     }
 
     @Test
@@ -67,38 +51,10 @@ class ServicesTest {
         assertEquals(ClassLoader.getSystemClassLoader(), accessorList.get(2).getClassLoader())
     }
 
-    static class NoServicesClassLoader extends ClassLoader {
-        private NoServicesClassLoader(ClassLoader parent) {
-            super(parent)
-        }
-
-        @Override
-        Enumeration<URL> getResources(String name) throws IOException {
-            if (name.startsWith("META-INF/services/")) {
-                return java.util.Collections.emptyEnumeration()
-            } else {
-                return super.getResources(name)
-            }
-        }
-
-        static void runWith(Closure closure) {
-            Field field = PowerMock.field(Services.class, "CLASS_LOADER_ACCESSORS")
-            def originalValue = field.get(Services.class)
-            try {
-                // use powermock to change the list of the classloaders we are using
-                List<Services.ClassLoaderAccessor> classLoaderAccessors = [
-                        new Services.ClassLoaderAccessor() {
-                            @Override
-                            ClassLoader getClassLoader() {
-                                return new NoServicesClassLoader(Thread.currentThread().getContextClassLoader())
-                            }
-                        }
-                ]
-                field.set(Services.class, classLoaderAccessors)
-                closure.run()
-            } finally {
-                field.set(Services.class, originalValue)
-            }
-        }
+    @After
+    void resetCache() {
+        Services.reload();
     }
+
+    interface NoService {} // no implementations
 }

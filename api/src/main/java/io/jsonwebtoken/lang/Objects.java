@@ -16,22 +16,30 @@
 package io.jsonwebtoken.lang;
 
 import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
 
+/**
+ * Utility methods for working with object instances to reduce pattern repetition and otherwise
+ * increased cyclomatic complexity.
+ */
 public final class Objects {
 
-    private Objects(){} //prevent instantiation
+    private Objects() {
+    } //prevent instantiation
 
     private static final int INITIAL_HASH = 7;
-    private static final int MULTIPLIER   = 31;
+    private static final int MULTIPLIER = 31;
 
-    private static final String EMPTY_STRING            = "";
-    private static final String NULL_STRING             = "null";
-    private static final String ARRAY_START             = "{";
-    private static final String ARRAY_END               = "}";
-    private static final String EMPTY_ARRAY             = ARRAY_START + ARRAY_END;
+    private static final String EMPTY_STRING = "";
+    private static final String NULL_STRING = "null";
+    private static final String ARRAY_START = "{";
+    private static final String ARRAY_END = "}";
+    private static final String EMPTY_ARRAY = ARRAY_START + ARRAY_END;
     private static final String ARRAY_ELEMENT_SEPARATOR = ", ";
 
     /**
@@ -73,33 +81,65 @@ public final class Objects {
     }
 
     /**
-     * Determine whether the given object is an array:
-     * either an Object array or a primitive array.
+     * Returns {@code true} if the specified argument is an Object or primitive array, {@code false} otherwise.
      *
-     * @param obj the object to check
+     * @param obj the object instance to check
+     * @return {@code true} if the specified argument is an Object or primitive array, {@code false} otherwise.
      */
     public static boolean isArray(Object obj) {
         return (obj != null && obj.getClass().isArray());
     }
 
     /**
-     * Determine whether the given array is empty:
-     * i.e. <code>null</code> or of zero length.
+     * Returns {@code true} if the specified argument:
+     * <ol>
+     *     <li>is {@code null}, or</li>
+     *     <li>is a CharSequence and {@link Strings#hasText(CharSequence)} is {@code false}, or</li>
+     *     <li>is a Collection or Map with zero size, or</li>
+     *     <li>is an empty array</li>
+     * </ol>
+     * <p>or {@code false} otherwise.</p>
+     *
+     * @param v object to check
+     * @return {@code true} if the specified argument is empty, {@code false} otherwise.
+     * @since 0.12.0
+     */
+    public static boolean isEmpty(Object v) {
+        return v == null ||
+                (v instanceof CharSequence && !Strings.hasText((CharSequence) v)) ||
+                (v instanceof Collection && Collections.isEmpty((Collection<?>) v)) ||
+                (v instanceof Map && Collections.isEmpty((Map<?, ?>) v)) ||
+                (v.getClass().isArray() && Array.getLength(v) == 0);
+    }
+
+    /**
+     * {@code true} if the specified array is null or zero length, {@code false} if populated.
      *
      * @param array the array to check
+     * @return {@code true} if the specified array is null or zero length, {@code false} if populated.
      */
     public static boolean isEmpty(Object[] array) {
         return (array == null || array.length == 0);
     }
 
     /**
-     * Returns {@code true} if the specified byte array is null or of zero length, {@code false} otherwise.
+     * Returns {@code true} if the specified byte array is null or of zero length, {@code false} if populated.
      *
      * @param array the byte array to check
-     * @return {@code true} if the specified byte array is null or of zero length, {@code false} otherwise.
+     * @return {@code true} if the specified byte array is null or of zero length, {@code false} if populated.
      */
     public static boolean isEmpty(byte[] array) {
         return array == null || array.length == 0;
+    }
+
+    /**
+     * Returns {@code true} if the specified character array is null or of zero length, {@code false} otherwise.
+     *
+     * @param chars the character array to check
+     * @return {@code true} if the specified character array is null or of zero length, {@code false} otherwise.
+     */
+    public static boolean isEmpty(char[] chars) {
+        return chars == null || chars.length == 0;
     }
 
     /**
@@ -145,8 +185,8 @@ public final class Objects {
     public static boolean containsConstant(Enum<?>[] enumValues, String constant, boolean caseSensitive) {
         for (Enum<?> candidate : enumValues) {
             if (caseSensitive ?
-                candidate.toString().equals(constant) :
-                candidate.toString().equalsIgnoreCase(constant)) {
+                    candidate.toString().equals(constant) :
+                    candidate.toString().equalsIgnoreCase(constant)) {
                 return true;
             }
         }
@@ -159,6 +199,7 @@ public final class Objects {
      * @param <E>        the concrete Enum type
      * @param enumValues the array of all Enum constants in question, usually per Enum.values()
      * @param constant   the constant to get the enum value of
+     * @return the enum constant of the specified enum type with the specified case-insensitive name
      * @throws IllegalArgumentException if the given constant is not found in the given array
      *                                  of enum values. Use {@link #containsConstant(Enum[], String)} as a guard to
      *                                  avoid this exception.
@@ -170,8 +211,8 @@ public final class Objects {
             }
         }
         throw new IllegalArgumentException(
-            String.format("constant [%s] does not exist in enum type %s",
-                          constant, enumValues.getClass().getComponentType().getName()));
+                String.format("constant [%s] does not exist in enum type %s",
+                        constant, enumValues.getClass().getComponentType().getName()));
     }
 
     /**
@@ -179,7 +220,9 @@ public final class Objects {
      * consisting of the input array contents plus the given object.
      *
      * @param array the array to append to (can be <code>null</code>)
+     * @param <A>   the type of each element in the specified {@code array}
      * @param obj   the object to append
+     * @param <O>   the type of the specified object, which must be equal to or extend the <code>&lt;A&gt;</code> type.
      * @return the new array (of the same component type; never <code>null</code>)
      */
     public static <A, O extends A> A[] addObjectToArray(A[] array, O obj) {
@@ -297,6 +340,8 @@ public final class Objects {
      * methods for arrays in this class. If the object is <code>null</code>,
      * this method returns 0.
      *
+     * @param obj the object to use for obtaining a hashcode
+     * @return the object's hashcode, which could be 0 if the object is null.
      * @see #nullSafeHashCode(Object[])
      * @see #nullSafeHashCode(boolean[])
      * @see #nullSafeHashCode(byte[])
@@ -346,8 +391,11 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the array to obtain a hashcode
+     * @return the array's hashcode, which could be 0 if the array is null.
      */
-    public static int nullSafeHashCode(Object[] array) {
+    public static int nullSafeHashCode(Object... array) {
         if (array == null) {
             return 0;
         }
@@ -362,6 +410,9 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the boolean array to obtain a hashcode
+     * @return the boolean array's hashcode, which could be 0 if the array is null.
      */
     public static int nullSafeHashCode(boolean[] array) {
         if (array == null) {
@@ -378,6 +429,9 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the byte array to obtain a hashcode
+     * @return the byte array's hashcode, which could be 0 if the array is null.
      */
     public static int nullSafeHashCode(byte[] array) {
         if (array == null) {
@@ -394,6 +448,9 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the char array to obtain a hashcode
+     * @return the char array's hashcode, which could be 0 if the array is null.
      */
     public static int nullSafeHashCode(char[] array) {
         if (array == null) {
@@ -410,6 +467,9 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the double array to obtain a hashcode
+     * @return the double array's hashcode, which could be 0 if the array is null.
      */
     public static int nullSafeHashCode(double[] array) {
         if (array == null) {
@@ -426,6 +486,9 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the float array to obtain a hashcode
+     * @return the float array's hashcode, which could be 0 if the array is null.
      */
     public static int nullSafeHashCode(float[] array) {
         if (array == null) {
@@ -442,6 +505,9 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the int array to obtain a hashcode
+     * @return the int array's hashcode, which could be 0 if the array is null.
      */
     public static int nullSafeHashCode(int[] array) {
         if (array == null) {
@@ -458,6 +524,9 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the long array to obtain a hashcode
+     * @return the long array's hashcode, which could be 0 if the array is null.
      */
     public static int nullSafeHashCode(long[] array) {
         if (array == null) {
@@ -474,6 +543,9 @@ public final class Objects {
     /**
      * Return a hash code based on the contents of the specified array.
      * If <code>array</code> is <code>null</code>, this method returns 0.
+     *
+     * @param array the short array to obtain a hashcode
+     * @return the short array's hashcode, which could be 0 if the array is null.
      */
     public static int nullSafeHashCode(short[] array) {
         if (array == null) {
@@ -490,6 +562,8 @@ public final class Objects {
     /**
      * Return the same value as <code>{@link Boolean#hashCode()}</code>.
      *
+     * @param bool the boolean to get a hashcode
+     * @return the same value as {@link Boolean#hashCode()}.
      * @see Boolean#hashCode()
      */
     public static int hashCode(boolean bool) {
@@ -499,6 +573,8 @@ public final class Objects {
     /**
      * Return the same value as <code>{@link Double#hashCode()}</code>.
      *
+     * @param dbl the double to get a hashcode
+     * @return the same value as {@link Double#hashCode()}.
      * @see Double#hashCode()
      */
     public static int hashCode(double dbl) {
@@ -509,6 +585,8 @@ public final class Objects {
     /**
      * Return the same value as <code>{@link Float#hashCode()}</code>.
      *
+     * @param flt the float to get a hashcode
+     * @return the same value as {@link Float#hashCode()}.
      * @see Float#hashCode()
      */
     public static int hashCode(float flt) {
@@ -518,6 +596,8 @@ public final class Objects {
     /**
      * Return the same value as <code>{@link Long#hashCode()}</code>.
      *
+     * @param lng the long to get a hashcode
+     * @return the same value as {@link Long#hashCode()}.
      * @see Long#hashCode()
      */
     public static int hashCode(long lng) {
@@ -532,9 +612,8 @@ public final class Objects {
     /**
      * Return a String representation of an object's overall identity.
      *
-     * @param obj the object (may be <code>null</code>)
-     * @return the object's identity as String representation,
-     * or an empty String if the object was <code>null</code>
+     * @param obj the object (which may be <code>null</code>).
+     * @return the object's identity as String representation, or an empty String if the object was <code>null</code>.
      */
     public static String identityToString(Object obj) {
         if (obj == null) {
@@ -909,6 +988,12 @@ public final class Objects {
         return sb.toString();
     }
 
+    /**
+     * Iterate over the specified {@link Closeable} instances, invoking
+     * {@link Closeable#close()} on each one, ignoring any potential {@link IOException}s.
+     *
+     * @param closeables the closeables to close.
+     */
     public static void nullSafeClose(Closeable... closeables) {
         if (closeables == null) {
             return;
@@ -920,6 +1005,25 @@ public final class Objects {
                     closeable.close();
                 } catch (IOException e) {
                     //Ignore the exception during close.
+                }
+            }
+        }
+    }
+
+    /**
+     * Iterate over the specified {@link Flushable} instances, invoking
+     * {@link Flushable#flush()} on each one, ignoring any potential {@link IOException}s.
+     *
+     * @param flushables the flushables to flush.
+     * @since 0.12.0
+     */
+    public static void nullSafeFlush(Flushable... flushables) {
+        if (flushables == null) return;
+        for (Flushable flushable : flushables) {
+            if (flushable != null) {
+                try {
+                    flushable.flush();
+                } catch (IOException ignored) {
                 }
             }
         }

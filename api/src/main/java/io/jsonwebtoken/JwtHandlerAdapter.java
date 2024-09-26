@@ -21,32 +21,78 @@ package io.jsonwebtoken;
  * known/expected for a particular use case.
  *
  * <p>All of the methods in this implementation throw exceptions: overridden methods represent
- * scenarios expected by calling code in known situations.  It would be unexpected to receive a JWS or JWT that did
+ * scenarios expected by calling code in known situations.  It would be unexpected to receive a JWT that did
  * not match parsing expectations, so all non-overridden methods throw exceptions to indicate that the JWT
  * input was unexpected.</p>
  *
  * @param <T> the type of object to return to the parser caller after handling the parsed JWT.
  * @since 0.2
  */
-public class JwtHandlerAdapter<T> implements JwtHandler<T> {
+public abstract class JwtHandlerAdapter<T> extends SupportedJwtVisitor<T> implements JwtHandler<T> {
+
+    /**
+     * Default constructor, does not initialize any internal state.
+     */
+    public JwtHandlerAdapter() {
+    }
 
     @Override
-    public T onPlaintextJwt(Jwt<Header, String> jwt) {
-        throw new UnsupportedJwtException("Unsigned plaintext JWTs are not supported.");
+    public T onUnsecuredContent(Jwt<Header, byte[]> jwt) {
+        return onContentJwt(jwt); // bridge for existing implementations
+    }
+
+    @Override
+    public T onUnsecuredClaims(Jwt<Header, Claims> jwt) {
+        return onClaimsJwt(jwt);
+    }
+
+    @Override
+    public T onVerifiedContent(Jws<byte[]> jws) {
+        return onContentJws(jws);
+    }
+
+    @Override
+    public T onVerifiedClaims(Jws<Claims> jws) {
+        return onClaimsJws(jws);
+    }
+
+    @Override
+    public T onDecryptedContent(Jwe<byte[]> jwe) {
+        return onContentJwe(jwe);
+    }
+
+    @Override
+    public T onDecryptedClaims(Jwe<Claims> jwe) {
+        return onClaimsJwe(jwe);
+    }
+
+    @Override
+    public T onContentJwt(Jwt<Header, byte[]> jwt) {
+        return super.onUnsecuredContent(jwt);
     }
 
     @Override
     public T onClaimsJwt(Jwt<Header, Claims> jwt) {
-        throw new UnsupportedJwtException("Unsigned Claims JWTs are not supported.");
+        return super.onUnsecuredClaims(jwt);
     }
 
     @Override
-    public T onPlaintextJws(Jws<String> jws) {
-        throw new UnsupportedJwtException("Signed plaintext JWSs are not supported.");
+    public T onContentJws(Jws<byte[]> jws) {
+        return super.onVerifiedContent(jws);
     }
 
     @Override
     public T onClaimsJws(Jws<Claims> jws) {
-        throw new UnsupportedJwtException("Signed Claims JWSs are not supported.");
+        return super.onVerifiedClaims(jws);
+    }
+
+    @Override
+    public T onContentJwe(Jwe<byte[]> jwe) {
+        return super.onDecryptedContent(jwe);
+    }
+
+    @Override
+    public T onClaimsJwe(Jwe<Claims> jwe) {
+        return super.onDecryptedClaims(jwe);
     }
 }

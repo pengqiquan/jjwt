@@ -13,38 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+//file:noinspection GrDeprecatedAPIUsage
 package io.jsonwebtoken.jackson.io
 
+import com.fasterxml.jackson.core.JsonParseException
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.jsonwebtoken.io.DeserializationException
 import io.jsonwebtoken.io.Deserializer
 import io.jsonwebtoken.io.Encoders
 import io.jsonwebtoken.jackson.io.stubs.CustomBean
 import io.jsonwebtoken.lang.Maps
-import io.jsonwebtoken.lang.Strings
+import org.junit.Before
 import org.junit.Test
 
-import static org.easymock.EasyMock.*
 import static org.junit.Assert.*
-import static org.hamcrest.CoreMatchers.instanceOf
 
 class JacksonDeserializerTest {
+
+    private JacksonDeserializer deserializer
+
+    @Before
+    void setUp() {
+        deserializer = new JacksonDeserializer()
+    }
+
     @Test
     void loadService() {
         def deserializer = ServiceLoader.load(Deserializer).iterator().next()
-        assertThat(deserializer, instanceOf(JacksonDeserializer))
+        assertTrue deserializer instanceof JacksonDeserializer
     }
 
     @Test
     void testDefaultConstructor() {
-        def deserializer = new JacksonDeserializer()
-        assertNotNull deserializer.objectMapper
+        assertSame JacksonSerializer.DEFAULT_OBJECT_MAPPER, deserializer.objectMapper
     }
 
     @Test
     void testObjectMapperConstructor() {
         def customOM = new ObjectMapper()
-        def deserializer = new JacksonDeserializer(customOM)
+        deserializer = new JacksonDeserializer<>(customOM)
         assertSame customOM, deserializer.objectMapper
     }
 
@@ -55,9 +62,9 @@ class JacksonDeserializerTest {
 
     @Test
     void testDeserialize() {
-        byte[] serialized = '{"hello":"世界"}'.getBytes(Strings.UTF_8)
+        def reader = new StringReader('{"hello":"世界"}')
         def expected = [hello: '世界']
-        def result = new JacksonDeserializer().deserialize(serialized)
+        def result = deserializer.deserialize(reader)
         assertEquals expected, result
     }
 
@@ -66,7 +73,8 @@ class JacksonDeserializerTest {
 
         long currentTime = System.currentTimeMillis()
 
-        byte[] serialized = """{
+        String json = """
+             {
                 "oneKey":"oneValue", 
                 "custom": {
                     "stringValue": "s-value",
@@ -87,28 +95,113 @@ class JacksonDeserializerTest {
                     }
                 }
             }
-            """.getBytes(Strings.UTF_8)
+            """
 
         CustomBean expectedCustomBean = new CustomBean()
-            .setByteArrayValue("bytes".getBytes("UTF-8"))
-            .setByteValue(0xF as byte)
-            .setDateValue(new Date(currentTime))
-            .setIntValue(11)
-            .setShortValue(22 as short)
-            .setLongValue(33L)
-            .setStringValue("s-value")
-            .setNestedValue(new CustomBean()
-                .setByteArrayValue("bytes2".getBytes("UTF-8"))
-                .setByteValue(0xA as byte)
-                .setDateValue(new Date(currentTime+1))
-                .setIntValue(111)
-                .setShortValue(222 as short)
-                .setLongValue(333L)
-                .setStringValue("nested-value")
-            )
+                .setByteArrayValue("bytes".getBytes("UTF-8"))
+                .setByteValue(0xF as byte)
+                .setDateValue(new Date(currentTime))
+                .setIntValue(11)
+                .setShortValue(22 as short)
+                .setLongValue(33L)
+                .setStringValue("s-value")
+                .setNestedValue(new CustomBean()
+                        .setByteArrayValue("bytes2".getBytes("UTF-8"))
+                        .setByteValue(0xA as byte)
+                        .setDateValue(new Date(currentTime + 1))
+                        .setIntValue(111)
+                        .setShortValue(222 as short)
+                        .setLongValue(333L)
+                        .setStringValue("nested-value")
+                )
 
         def expected = [oneKey: "oneValue", custom: expectedCustomBean]
-        def result = new JacksonDeserializer(Maps.of("custom", CustomBean).build()).deserialize(serialized)
+        def result = new JacksonDeserializer(Maps.of("custom", CustomBean).build())
+                .deserialize(new StringReader(json))
+        assertEquals expected, result
+    }
+
+    /**
+     * Asserts https://github.com/jwtk/jjwt/issues/877
+     * @since 0.12.4
+     */
+    @Test
+    void testStrictDuplicateDetection() {
+        // 'bKey' is repeated twice:
+        String json = """
+             {
+                "aKey":"oneValue", 
+                "bKey": 15,
+                "bKey": "hello"
+             }
+            """
+        try {
+            new JacksonDeserializer<>().deserialize(new StringReader(json))
+            fail()
+        } catch (DeserializationException expected) {
+            String causeMsg = "Duplicate field 'bKey'\n at [Source: (StringReader); line: 5, column: 23]"
+            String msg = "Unable to deserialize: $causeMsg"
+            assertEquals msg, expected.getMessage()
+            assertTrue expected.getCause() instanceof JsonParseException
+            assertEquals causeMsg, expected.getCause().getMessage()
+        }
+    }
+
+    /**
+     * Asserts https://github.com/jwtk/jjwt/issues/893
+     */
+    @Test
+    void testIgnoreUnknownPropertiesWhenDeserializeWithCustomObject() {
+        
+        long currentTime = System.currentTimeMillis()
+
+        String json = """
+             {
+                "oneKey":"oneValue", 
+                "custom": {
+                    "stringValue": "s-value",
+                    "intValue": "11",
+                    "dateValue": ${currentTime},
+                    "shortValue": 22,
+                    "longValue": 33,
+                    "byteValue": 15,
+                    "byteArrayValue": "${base64('bytes')}",
+                    "unknown": "unknown",
+                    "nestedValue": {
+                        "stringValue": "nested-value",
+                        "intValue": "111",
+                        "dateValue": ${currentTime + 1},
+                        "shortValue": 222,
+                        "longValue": 333,
+                        "byteValue": 10,
+                        "byteArrayValue": "${base64('bytes2')}",
+                        "unknown": "unknown"
+                    }
+                }
+            }
+            """
+
+        CustomBean expectedCustomBean = new CustomBean()
+                .setByteArrayValue("bytes".getBytes("UTF-8"))
+                .setByteValue(0xF as byte)
+                .setDateValue(new Date(currentTime))
+                .setIntValue(11)
+                .setShortValue(22 as short)
+                .setLongValue(33L)
+                .setStringValue("s-value")
+                .setNestedValue(new CustomBean()
+                        .setByteArrayValue("bytes2".getBytes("UTF-8"))
+                        .setByteValue(0xA as byte)
+                        .setDateValue(new Date(currentTime + 1))
+                        .setIntValue(111)
+                        .setShortValue(222 as short)
+                        .setLongValue(333L)
+                        .setStringValue("nested-value")
+                )
+
+        def expected = [oneKey: "oneValue", custom: expectedCustomBean]
+        def result = new JacksonDeserializer(Maps.of("custom", CustomBean).build())
+                .deserialize(new StringReader(json))
         assertEquals expected, result
     }
 
@@ -143,7 +236,8 @@ class JacksonDeserializerTest {
         typeMap.put("custom", CustomBean)
 
         def deserializer = new JacksonDeserializer(typeMap)
-        def result = deserializer.deserialize('{"alg":"HS256"}'.getBytes("UTF-8"))
+        def reader = new StringReader('{"alg":"HS256"}')
+        def result = deserializer.deserialize(reader)
         assertEquals(["alg": "HS256"], result)
     }
 
@@ -153,33 +247,27 @@ class JacksonDeserializerTest {
     }
 
     @Test
-    void testDeserializeFailsWithJsonProcessingException() {
+    void testDeserializeFailsWithException() {
 
-        def ex = createMock(java.io.IOException)
+        def ex = new IOException('foo')
 
-        expect(ex.getMessage()).andReturn('foo')
-
-        def deserializer = new JacksonDeserializer() {
+        deserializer = new JacksonDeserializer() {
             @Override
-            protected Object readValue(byte[] bytes) throws java.io.IOException {
+            protected Object doDeserialize(Reader reader) throws Exception {
                 throw ex
             }
         }
-
-        replay ex
-
         try {
-            deserializer.deserialize('{"hello":"世界"}'.getBytes(Strings.UTF_8))
+            deserializer.deserialize(new StringReader('{"hello":"世界"}'))
             fail()
         } catch (DeserializationException se) {
-            assertEquals 'Unable to deserialize bytes into a java.lang.Object instance: foo', se.getMessage()
+            String msg = 'Unable to deserialize: foo'
+            assertEquals msg, se.getMessage()
             assertSame ex, se.getCause()
         }
-
-        verify ex
     }
 
-    private String base64(String input) {
+    private static String base64(String input) {
         return Encoders.BASE64.encode(input.getBytes('UTF-8'))
     }
 }

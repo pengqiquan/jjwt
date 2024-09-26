@@ -17,27 +17,17 @@ package io.jsonwebtoken.impl;
 
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
+import io.jsonwebtoken.JwtVisitor;
 
-public class DefaultJws<B> implements Jws<B> {
+public class DefaultJws<P> extends DefaultProtectedJwt<JwsHeader, P> implements Jws<P> {
 
-    private final JwsHeader header;
-    private final B body;
+    private static final String DIGEST_NAME = "signature";
+
     private final String signature;
 
-    public DefaultJws(JwsHeader header, B body, String signature) {
-        this.header = header;
-        this.body = body;
-        this.signature = signature;
-    }
-
-    @Override
-    public JwsHeader getHeader() {
-        return this.header;
-    }
-
-    @Override
-    public B getBody() {
-        return this.body;
+    public DefaultJws(JwsHeader header, P payload, byte[] signature, String b64UrlSig) {
+        super(header, payload, signature, DIGEST_NAME);
+        this.signature = b64UrlSig;
     }
 
     @Override
@@ -46,7 +36,7 @@ public class DefaultJws<B> implements Jws<B> {
     }
 
     @Override
-    public String toString() {
-        return "header=" + header + ",body=" + body + ",signature=" + signature;
+    public <T> T accept(JwtVisitor<T> v) {
+        return v.visit(this);
     }
 }

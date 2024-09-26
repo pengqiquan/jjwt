@@ -15,52 +15,78 @@
  */
 package io.jsonwebtoken
 
+import org.junit.Before
 import org.junit.Test
-import static org.junit.Assert.*
+
+import static org.junit.Assert.assertEquals
+import static org.junit.Assert.fail
 
 class JwtHandlerAdapterTest {
 
+    private JwtHandlerAdapter handler
+
+    @Before
+    void setUp() {
+        handler = new JwtHandlerAdapter() {}
+    }
+
     @Test
-    void testOnPlaintextJwt() {
-        def handler = new JwtHandlerAdapter();
+    void testOnContentJwt() {
         try {
-            handler.onPlaintextJwt(null)
+            handler.onUnsecuredContent(null)
             fail()
         } catch (UnsupportedJwtException e) {
-            assertEquals e.getMessage(), 'Unsigned plaintext JWTs are not supported.'
+            assertEquals 'Unexpected unsecured content JWT.', e.getMessage()
         }
     }
 
     @Test
     void testOnClaimsJwt() {
-        def handler = new JwtHandlerAdapter();
         try {
-            handler.onClaimsJwt(null)
+            handler.onUnsecuredClaims(null)
             fail()
         } catch (UnsupportedJwtException e) {
-            assertEquals e.getMessage(), 'Unsigned Claims JWTs are not supported.'
+            assertEquals 'Unexpected unsecured Claims JWT.', e.getMessage()
         }
     }
 
     @Test
-    void testOnPlaintextJws() {
-        def handler = new JwtHandlerAdapter();
+    void testOnContentJws() {
         try {
-            handler.onPlaintextJws(null)
+            handler.onVerifiedContent(null)
             fail()
         } catch (UnsupportedJwtException e) {
-            assertEquals e.getMessage(), 'Signed plaintext JWSs are not supported.'
+            assertEquals 'Unexpected content JWS.', e.getMessage()
         }
     }
 
     @Test
     void testOnClaimsJws() {
-        def handler = new JwtHandlerAdapter();
         try {
-            handler.onClaimsJws(null)
+            handler.onVerifiedClaims(null)
             fail()
         } catch (UnsupportedJwtException e) {
-            assertEquals e.getMessage(), 'Signed Claims JWSs are not supported.'
+            assertEquals 'Unexpected Claims JWS.', e.getMessage()
+        }
+    }
+
+    @Test
+    void testOnContentJwe() {
+        try {
+            handler.onDecryptedContent(null)
+            fail()
+        } catch (UnsupportedJwtException e) {
+            assertEquals 'Unexpected content JWE.', e.getMessage()
+        }
+    }
+
+    @Test
+    void testOnClaimsJwe() {
+        try {
+            handler.onDecryptedClaims(null)
+            fail()
+        } catch (UnsupportedJwtException e) {
+            assertEquals 'Unexpected Claims JWE.', e.getMessage()
         }
     }
 }

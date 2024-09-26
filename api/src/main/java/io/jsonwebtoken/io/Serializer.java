@@ -15,11 +15,37 @@
  */
 package io.jsonwebtoken.io;
 
+import java.io.OutputStream;
+
 /**
+ * A {@code Serializer} is able to convert a Java object into a formatted byte stream.  It is expected this byte stream
+ * can be reconstituted back into a Java object with a matching {@link Deserializer}.
+ *
+ * @param <T> The type of object to serialize.
  * @since 0.10.0
  */
 public interface Serializer<T> {
 
+    /**
+     * Converts the specified Java object into a formatted data byte array.
+     *
+     * @param t the object to serialize
+     * @return the serialized byte array representing the specified object.
+     * @throws SerializationException if there is a problem converting the object to a byte array.
+     * @deprecated since 0.12.0 in favor of {@link #serialize(Object, OutputStream)}
+     */
+    @Deprecated
     byte[] serialize(T t) throws SerializationException;
 
+    /**
+     * Converts the specified Java object into a formatted data byte stream, writing the bytes to the specified
+     * {@code out}put stream.
+     *
+     * @param t   the object to convert to a byte stream
+     * @param out the stream to write to
+     * @throws SerializationException if there is a problem converting the object to a byte stream or writing the
+     *                                bytes to the {@code out}put stream.
+     * @since 0.12.0
+     */
+    void serialize(T t, OutputStream out) throws SerializationException;
 }

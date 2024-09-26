@@ -17,35 +17,52 @@ package io.jsonwebtoken.impl
 
 import io.jsonwebtoken.JwsHeader
 import io.jsonwebtoken.Jwts
-import io.jsonwebtoken.SignatureAlgorithm
-import io.jsonwebtoken.security.Keys
+import io.jsonwebtoken.impl.lang.Bytes
+import io.jsonwebtoken.io.Encoders
 import org.junit.Test
 
-import static org.junit.Assert.assertEquals
-import static org.junit.Assert.assertSame
+import java.security.MessageDigest
+
+import static org.junit.Assert.*
 
 class DefaultJwsTest {
 
     @Test
     void testConstructor() {
-
-        JwsHeader header = Jwts.jwsHeader()
-        def jws = new DefaultJws<String>(header, 'foo', 'sig')
-
+        JwsHeader header = new DefaultJwsHeader([:])
+        byte[] sig = Bytes.random(32)
+        String b64u = Encoders.BASE64URL.encode(sig)
+        def jws = new DefaultJws<String>(header, 'foo', sig, b64u)
         assertSame jws.getHeader(), header
-        assertEquals jws.getBody(), 'foo'
-        assertEquals jws.getSignature(), 'sig'
+        assertEquals jws.getPayload(), 'foo'
+        assertTrue MessageDigest.isEqual(sig, jws.getDigest())
+        assertEquals b64u, jws.getSignature()
     }
 
     @Test
     void testToString() {
         //create random signing key for testing:
-        SignatureAlgorithm alg = SignatureAlgorithm.HS256
-        byte[] key = Keys.secretKeyFor(alg).encoded
-        String compact = Jwts.builder().claim('foo', 'bar').signWith(alg, key).compact();
+        def alg = Jwts.SIG.HS256
+        def key = alg.key().build()
+        String compact = Jwts.builder().claim('foo', 'bar').signWith(key, alg).compact()
         int i = compact.lastIndexOf('.')
         String signature = compact.substring(i + 1)
-        def jws = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(compact)
-        assertEquals 'header={alg=HS256},body={foo=bar},signature=' + signature, jws.toString()
+        def jws = Jwts.parser().verifyWith(key).build().parseSignedClaims(compact)
+        assertEquals 'header={alg=HS256},payload={foo=bar},signature=' + signature, jws.toString()
+    }
+
+    @Test
+    void testEqualsAndHashCode() {
+        def alg = Jwts.SIG.HS256
+        def key = alg.key().build()
+        String compact = Jwts.builder().claim('foo', 'bar').signWith(key, alg).compact()
+        def parser = Jwts.parser().verifyWith(key).build()
+        def jws1 = parser.parseSignedClaims(compact)
+        def jws2 = parser.parseSignedClaims(compact)
+        assertNotEquals jws1, 'hello' as String
+        assertEquals jws1, jws1
+        assertEquals jws2, jws2
+        assertEquals jws1, jws2
+        assertEquals jws1.hashCode(), jws2.hashCode()
     }
 }

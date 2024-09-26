@@ -16,24 +16,21 @@
 package io.jsonwebtoken.gson.io;
 
 import com.google.gson.Gson;
-import io.jsonwebtoken.io.DeserializationException;
-import io.jsonwebtoken.io.Deserializer;
+import io.jsonwebtoken.io.AbstractDeserializer;
 import io.jsonwebtoken.lang.Assert;
-import io.jsonwebtoken.lang.Strings;
 
-import java.io.IOException;
+import java.io.Reader;
 
-public class GsonDeserializer<T> implements Deserializer<T> {
+public class GsonDeserializer<T> extends AbstractDeserializer<T> {
 
     private final Class<T> returnType;
-    private final Gson gson;
+    protected final Gson gson;
 
-    @SuppressWarnings("unused") //used via reflection by RuntimeClasspathDeserializerLocator
     public GsonDeserializer() {
         this(GsonSerializer.DEFAULT_GSON);
     }
 
-    @SuppressWarnings({"unchecked", "WeakerAccess", "unused"}) // for end-users providing a custom gson
+    @SuppressWarnings("unchecked")
     public GsonDeserializer(Gson gson) {
         this(gson, (Class<T>) Object.class);
     }
@@ -46,16 +43,7 @@ public class GsonDeserializer<T> implements Deserializer<T> {
     }
 
     @Override
-    public T deserialize(byte[] bytes) throws DeserializationException {
-        try {
-            return readValue(bytes);
-        } catch (IOException e) {
-            String msg = "Unable to deserialize bytes into a " + returnType.getName() + " instance: " + e.getMessage();
-            throw new DeserializationException(msg, e);
-        }
-    }
-
-    protected T readValue(byte[] bytes) throws IOException {
-        return gson.fromJson(new String(bytes, Strings.UTF_8), returnType);
+    protected T doDeserialize(Reader reader) {
+        return gson.fromJson(reader, returnType);
     }
 }

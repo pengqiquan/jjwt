@@ -20,17 +20,21 @@ package io.jsonwebtoken;
  * can use to decompress the JWT body.
  *
  * <p>JJWT's default {@link JwtParser} implementation supports both the
- * {@link CompressionCodecs#DEFLATE DEFLATE}
- * and {@link CompressionCodecs#GZIP GZIP} algorithms by default - you do not need to
+ * {@link Jwts.ZIP#DEF DEFLATE} and {@link Jwts.ZIP#GZIP GZIP} algorithms by default - you do not need to
  * specify a {@code CompressionCodecResolver} in these cases.</p>
  *
- * <p>However, if you want to use a compression algorithm other than {@code DEF} or {@code GZIP}, you must implement
+ * <p>However, if you want to use a compression algorithm other than {@code DEF} or {@code GZIP}, you can implement
  * your own {@link CompressionCodecResolver} and specify that when
- * {@link io.jsonwebtoken.JwtBuilder#compressWith(CompressionCodec) building} and
- * {@link io.jsonwebtoken.JwtParser#setCompressionCodecResolver(CompressionCodecResolver) parsing} JWTs.</p>
+ * {@link io.jsonwebtoken.JwtBuilder#compressWith(io.jsonwebtoken.io.CompressionAlgorithm) building} and
+ * {@link io.jsonwebtoken.JwtParserBuilder#setCompressionCodecResolver(CompressionCodecResolver) parsing} JWTs.</p>
  *
+ * @see JwtParserBuilder#setCompressionCodecResolver(CompressionCodecResolver)
+ * @see JwtParserBuilder#zip()
  * @since 0.6.0
+ * @deprecated in favor of {@link JwtParserBuilder#zip()}
  */
+@SuppressWarnings("DeprecatedIsStillUsed")
+@Deprecated
 public interface CompressionCodecResolver {
 
     /**
